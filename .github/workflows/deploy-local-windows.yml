@@ -26,14 +26,30 @@ jobs:
         shell: powershell
         run: |
           $source = ".next\standalone"
+          $publicSource = "public" # The folder containing your SVGs
           $dest = "D:\\Gema\\remake-mms\\dev"
+          
+          # 1. Clean Destination
           if (Test-Path $dest) { Remove-Item -Path "$dest\*" -Recurse -Force -ErrorAction SilentlyContinue }
           New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          
+          # 2. Copy Standalone Server
           Copy-Item -Path "$source\*" -Destination $dest -Recurse -Force
+          
+          # 3. Copy .next/static (Required for JS/CSS bundles)
           New-Item -ItemType Directory -Force -Path "$dest\.next\static" | Out-Null
           Copy-Item -Path ".next\static\*" -Destination "$dest\.next\static" -Recurse -Force
           
-          # CREATE ECOSYSTEM CONFIG FOR PORT 3001
+          # 4. CRITICAL: Copy Public Folder (Images, SVGs, Fonts)
+          # This merges the public folder into the root of the deployment
+          if (Test-Path $publicSource) {
+            Copy-Item -Path "$publicSource\*" -Destination $dest -Recurse -Force
+            Write-Host "✅ Public assets copied to $dest"
+          } else {
+            Write-Host "⚠️ No public folder found, skipping."
+          }
+
+          # 5. Create Ecosystem Config for Port
           $config = @"
           module.exports = {
             apps: [{
@@ -47,12 +63,12 @@ jobs:
           }
           "@
           Set-Content -Path "$dest\ecosystem.config.js" -Value $config
+          
       - name: 🔄 Start/Restart PM2 (Dev)
         shell: powershell
         run: |
           Set-Location "D:\\Gema\\remake-mms\\dev"
           pm2 delete mms1-dev --silent 2>$null
-          # Start using the config file
           pm2 start ecosystem.config.js
           Start-Sleep -Seconds 3
           
@@ -87,27 +103,33 @@ jobs:
         shell: powershell
         run: |
           $source = ".next\standalone"
+          $publicSource = "public"
           $dest = "D:\\Gema\\remake-mms\\test"
+          
           if (Test-Path $dest) { Remove-Item -Path "$dest\*" -Recurse -Force -ErrorAction SilentlyContinue }
           New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          
           Copy-Item -Path "$source\*" -Destination $dest -Recurse -Force
+          
           New-Item -ItemType Directory -Force -Path "$dest\.next\static" | Out-Null
           Copy-Item -Path ".next\static\*" -Destination "$dest\.next\static" -Recurse -Force
+          
+          # Copy Public Assets
+          if (Test-Path $publicSource) {
+            Copy-Item -Path "$publicSource\*" -Destination $dest -Recurse -Force
+          }
 
-          # CREATE ECOSYSTEM CONFIG FOR PORT 3002
           $config = @"
           module.exports = {
             apps: [{
               name: 'mms1-test',
               script: 'server.js',
-              env: {
-                PORT: 3002,
-                NODE_ENV: 'testing'
-              }
+              env: { PORT: 3002, NODE_ENV: 'testing' }
             }]
           }
           "@
           Set-Content -Path "$dest\ecosystem.config.js" -Value $config
+          
       - name: 🔄 Start/Restart PM2 (Test)
         shell: powershell
         run: |
@@ -115,16 +137,8 @@ jobs:
           pm2 delete mms1-test --silent 2>$null
           pm2 start ecosystem.config.js
           Start-Sleep -Seconds 3
-          
-          # Health Check
           $listening = Get-NetTCPConnection -LocalPort 3002 -ErrorAction SilentlyContinue
-          if ($listening) {
-            Write-Host "✅ SUCCESS: mms1-test is listening on port 3002"
-          } else {
-            Write-Host "❌ FAILED: Port 3002 is not listening."
-            pm2 logs mms1-test --lines 15
-            exit 1
-          }
+          if ($listening) { Write-Host "✅ SUCCESS: mms1-test on 3002" } else { Write-Host "❌ FAILED"; pm2 logs mms1-test --lines 15; exit 1 }
 
   deploy-prod:
     if: github.ref == 'refs/heads/main'
@@ -147,27 +161,33 @@ jobs:
         shell: powershell
         run: |
           $source = ".next\standalone"
+          $publicSource = "public"
           $dest = "D:\\Gema\\remake-mms\\prod"
+          
           if (Test-Path $dest) { Remove-Item -Path "$dest\*" -Recurse -Force -ErrorAction SilentlyContinue }
           New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          
           Copy-Item -Path "$source\*" -Destination $dest -Recurse -Force
+          
           New-Item -ItemType Directory -Force -Path "$dest\.next\static" | Out-Null
           Copy-Item -Path ".next\static\*" -Destination "$dest\.next\static" -Recurse -Force
+          
+          # Copy Public Assets
+          if (Test-Path $publicSource) {
+            Copy-Item -Path "$publicSource\*" -Destination $dest -Recurse -Force
+          }
 
-          # CREATE ECOSYSTEM CONFIG FOR PORT 3000
           $config = @"
           module.exports = {
             apps: [{
               name: 'mms1-prod',
               script: 'server.js',
-              env: {
-                PORT: 3000,
-                NODE_ENV: 'production'
-              }
+              env: { PORT: 3000, NODE_ENV: 'production' }
             }]
           }
           "@
           Set-Content -Path "$dest\ecosystem.config.js" -Value $config
+          
       - name: 🔄 Start/Restart PM2 (Prod)
         shell: powershell
         run: |
@@ -175,13 +195,5 @@ jobs:
           pm2 delete mms1-prod --silent 2>$null
           pm2 start ecosystem.config.js
           Start-Sleep -Seconds 3
-          
-          # Health Check
           $listening = Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue
-          if ($listening) {
-            Write-Host "✅ SUCCESS: mms1-prod is listening on port 3000"
-          } else {
-            Write-Host "❌ FAILED: Port 3000 is not listening."
-            pm2 logs mms1-prod --lines 15
-            exit 1
-          }
+          if ($listening) { Write-Host "✅ SUCCESS: mms1-prod on 3000" } else { Write-Host "❌ FAILED"; pm2 logs mms1-prod --lines 15; exit 1 }
