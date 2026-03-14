@@ -47,7 +47,7 @@ jobs:
         env:
           NEXT_PUBLIC_ENV: ${{ matrix.env_name }}
 
-      - name: 🕵️ Debug: Check Build Output
+      - name: 🕵️ Check Build Output
         shell: pwsh
         run: |
           Write-Host "Checking .next/standalone directory..."
