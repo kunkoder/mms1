@@ -23,7 +23,7 @@ jobs:
         env:
           NEXT_PUBLIC_ENV: development
       - name: 🚀 Deploy to Dev Folder
-        shell: powershell # Changed from pwsh to powershell
+        shell: powershell
         run: |
           $source = ".next\standalone"
           $dest = "D:\\Gema\\remake-mms\\dev"
@@ -33,11 +33,12 @@ jobs:
           New-Item -ItemType Directory -Force -Path "$dest\.next\static" | Out-Null
           Copy-Item -Path ".next\static\*" -Destination "$dest\.next\static" -Recurse -Force
       - name: 🔄 Restart PM2 (Dev)
-        shell: powershell # Changed from pwsh to powershell
+        shell: powershell
         run: |
           Set-Location "D:\\Gema\\remake-mms\\dev"
           pm2 delete mms1-dev --silent 2>$null
-          pm2 start server.js --name mms1-dev -e port 3001
+          # Use -e to set the PORT environment variable for the process
+          pm2 start server.js --name mms1-dev -e PORT=3001
           pm2 save
 
   deploy-test:
@@ -58,7 +59,7 @@ jobs:
         env:
           NEXT_PUBLIC_ENV: testing
       - name: 🚀 Deploy to Test Folder
-        shell: powershell # Changed from pwsh to powershell
+        shell: powershell
         run: |
           $source = ".next\standalone"
           $dest = "D:\\Gema\\remake-mms\\test"
@@ -68,11 +69,12 @@ jobs:
           New-Item -ItemType Directory -Force -Path "$dest\.next\static" | Out-Null
           Copy-Item -Path ".next\static\*" -Destination "$dest\.next\static" -Recurse -Force
       - name: 🔄 Restart PM2 (Test)
-        shell: powershell # Changed from pwsh to powershell
+        shell: powershell
         run: |
           Set-Location "D:\\Gema\\remake-mms\\test"
           pm2 delete mms1-test --silent 2>$null
-          pm2 start server.js --name mms1-test -e port 3002
+          # Use -e to set the PORT environment variable for the process
+          pm2 start server.js --name mms1-test -e PORT=3002
           pm2 save
 
   deploy-prod:
@@ -93,7 +95,7 @@ jobs:
         env:
           NEXT_PUBLIC_ENV: production
       - name: 🚀 Deploy to Prod Folder
-        shell: powershell # Changed from pwsh to powershell
+        shell: powershell
         run: |
           $source = ".next\standalone"
           $dest = "D:\\Gema\\remake-mms\\prod"
@@ -103,9 +105,10 @@ jobs:
           New-Item -ItemType Directory -Force -Path "$dest\.next\static" | Out-Null
           Copy-Item -Path ".next\static\*" -Destination "$dest\.next\static" -Recurse -Force
       - name: 🔄 Restart PM2 (Prod)
-        shell: powershell # Changed from pwsh to powershell
+        shell: powershell
         run: |
           Set-Location "D:\\Gema\\remake-mms\\prod"
           pm2 delete mms1-prod --silent 2>$null
-          pm2 start server.js --name mms1-prod -e port 3000
+          # Prod usually stays on default 3000, but let's be explicit
+          pm2 start server.js --name mms1-prod -e PORT=3000
           pm2 save
