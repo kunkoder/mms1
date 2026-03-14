@@ -32,28 +32,37 @@ jobs:
           Copy-Item -Path "$source\*" -Destination $dest -Recurse -Force
           New-Item -ItemType Directory -Force -Path "$dest\.next\static" | Out-Null
           Copy-Item -Path ".next\static\*" -Destination "$dest\.next\static" -Recurse -Force
+          
+          # CREATE ECOSYSTEM CONFIG FOR PORT 3001
+          $config = @"
+          module.exports = {
+            apps: [{
+              name: 'mms1-dev',
+              script: 'server.js',
+              env: {
+                PORT: 3001,
+                NODE_ENV: 'development'
+              }
+            }]
+          }
+          "@
+          Set-Content -Path "$dest\ecosystem.config.js" -Value $config
       - name: 🔄 Start/Restart PM2 (Dev)
         shell: powershell
         run: |
           Set-Location "D:\\Gema\\remake-mms\\dev"
-          
-          # Delete old process if exists
           pm2 delete mms1-dev --silent 2>$null
+          # Start using the config file
+          pm2 start ecosystem.config.js
+          Start-Sleep -Seconds 3
           
-          # Start with explicit port argument. 
-          # --update-env ensures new args are used if process existed
-          pm2 start server.js --name mms1-dev -- -p 3001
-          
-          # Wait 2 seconds for server to boot
-          Start-Sleep -Seconds 2
-          
-          # Health Check: Verify port 3001 is listening
+          # Health Check
           $listening = Get-NetTCPConnection -LocalPort 3001 -ErrorAction SilentlyContinue
           if ($listening) {
             Write-Host "✅ SUCCESS: mms1-dev is listening on port 3001"
           } else {
-            Write-Host "❌ FAILED: Port 3001 is not listening. Checking logs..."
-            pm2 logs mms1-dev --lines 10
+            Write-Host "❌ FAILED: Port 3001 is not listening."
+            pm2 logs mms1-dev --lines 15
             exit 1
           }
 
@@ -84,13 +93,28 @@ jobs:
           Copy-Item -Path "$source\*" -Destination $dest -Recurse -Force
           New-Item -ItemType Directory -Force -Path "$dest\.next\static" | Out-Null
           Copy-Item -Path ".next\static\*" -Destination "$dest\.next\static" -Recurse -Force
+
+          # CREATE ECOSYSTEM CONFIG FOR PORT 3002
+          $config = @"
+          module.exports = {
+            apps: [{
+              name: 'mms1-test',
+              script: 'server.js',
+              env: {
+                PORT: 3002,
+                NODE_ENV: 'testing'
+              }
+            }]
+          }
+          "@
+          Set-Content -Path "$dest\ecosystem.config.js" -Value $config
       - name: 🔄 Start/Restart PM2 (Test)
         shell: powershell
         run: |
           Set-Location "D:\\Gema\\remake-mms\\test"
           pm2 delete mms1-test --silent 2>$null
-          pm2 start server.js --name mms1-test -- -p 3002
-          Start-Sleep -Seconds 2
+          pm2 start ecosystem.config.js
+          Start-Sleep -Seconds 3
           
           # Health Check
           $listening = Get-NetTCPConnection -LocalPort 3002 -ErrorAction SilentlyContinue
@@ -98,7 +122,7 @@ jobs:
             Write-Host "✅ SUCCESS: mms1-test is listening on port 3002"
           } else {
             Write-Host "❌ FAILED: Port 3002 is not listening."
-            pm2 logs mms1-test --lines 10
+            pm2 logs mms1-test --lines 15
             exit 1
           }
 
@@ -129,13 +153,28 @@ jobs:
           Copy-Item -Path "$source\*" -Destination $dest -Recurse -Force
           New-Item -ItemType Directory -Force -Path "$dest\.next\static" | Out-Null
           Copy-Item -Path ".next\static\*" -Destination "$dest\.next\static" -Recurse -Force
+
+          # CREATE ECOSYSTEM CONFIG FOR PORT 3000
+          $config = @"
+          module.exports = {
+            apps: [{
+              name: 'mms1-prod',
+              script: 'server.js',
+              env: {
+                PORT: 3000,
+                NODE_ENV: 'production'
+              }
+            }]
+          }
+          "@
+          Set-Content -Path "$dest\ecosystem.config.js" -Value $config
       - name: 🔄 Start/Restart PM2 (Prod)
         shell: powershell
         run: |
           Set-Location "D:\\Gema\\remake-mms\\prod"
           pm2 delete mms1-prod --silent 2>$null
-          pm2 start server.js --name mms1-prod -- -p 3000
-          Start-Sleep -Seconds 2
+          pm2 start ecosystem.config.js
+          Start-Sleep -Seconds 3
           
           # Health Check
           $listening = Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue
@@ -143,6 +182,6 @@ jobs:
             Write-Host "✅ SUCCESS: mms1-prod is listening on port 3000"
           } else {
             Write-Host "❌ FAILED: Port 3000 is not listening."
-            pm2 logs mms1-prod --lines 10
+            pm2 logs mms1-prod --lines 15
             exit 1
           }
