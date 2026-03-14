@@ -22,9 +22,6 @@ jobs:
         run: npm run build
         env:
           NEXT_PUBLIC_ENV: development
-          # Setting PORT here ensures the build knows about it, 
-          # though standalone mainly cares about runtime.
-          PORT: "3001" 
       - name: 🚀 Deploy to Dev Folder
         shell: powershell
         run: |
@@ -35,14 +32,30 @@ jobs:
           Copy-Item -Path "$source\*" -Destination $dest -Recurse -Force
           New-Item -ItemType Directory -Force -Path "$dest\.next\static" | Out-Null
           Copy-Item -Path ".next\static\*" -Destination "$dest\.next\static" -Recurse -Force
-      - name: 🔄 Restart PM2 (Dev)
+      - name: 🔄 Start/Restart PM2 (Dev)
         shell: powershell
         run: |
           Set-Location "D:\\Gema\\remake-mms\\dev"
+          
+          # Delete old process if exists
           pm2 delete mms1-dev --silent 2>$null
-          # Explicitly pass the environment variable to the node process
+          
+          # Start with explicit port argument. 
+          # --update-env ensures new args are used if process existed
           pm2 start server.js --name mms1-dev -- -p 3001
-          pm2 save
+          
+          # Wait 2 seconds for server to boot
+          Start-Sleep -Seconds 2
+          
+          # Health Check: Verify port 3001 is listening
+          $listening = Get-NetTCPConnection -LocalPort 3001 -ErrorAction SilentlyContinue
+          if ($listening) {
+            Write-Host "✅ SUCCESS: mms1-dev is listening on port 3001"
+          } else {
+            Write-Host "❌ FAILED: Port 3001 is not listening. Checking logs..."
+            pm2 logs mms1-dev --lines 10
+            exit 1
+          }
 
   deploy-test:
     if: github.ref == 'refs/heads/test'
@@ -61,7 +74,6 @@ jobs:
         run: npm run build
         env:
           NEXT_PUBLIC_ENV: testing
-          PORT: "3002"
       - name: 🚀 Deploy to Test Folder
         shell: powershell
         run: |
@@ -72,14 +84,23 @@ jobs:
           Copy-Item -Path "$source\*" -Destination $dest -Recurse -Force
           New-Item -ItemType Directory -Force -Path "$dest\.next\static" | Out-Null
           Copy-Item -Path ".next\static\*" -Destination "$dest\.next\static" -Recurse -Force
-      - name: 🔄 Restart PM2 (Test)
+      - name: 🔄 Start/Restart PM2 (Test)
         shell: powershell
         run: |
           Set-Location "D:\\Gema\\remake-mms\\test"
           pm2 delete mms1-test --silent 2>$null
-          # Use '-- -p 3002' to pass arguments directly to node/server.js
           pm2 start server.js --name mms1-test -- -p 3002
-          pm2 save
+          Start-Sleep -Seconds 2
+          
+          # Health Check
+          $listening = Get-NetTCPConnection -LocalPort 3002 -ErrorAction SilentlyContinue
+          if ($listening) {
+            Write-Host "✅ SUCCESS: mms1-test is listening on port 3002"
+          } else {
+            Write-Host "❌ FAILED: Port 3002 is not listening."
+            pm2 logs mms1-test --lines 10
+            exit 1
+          }
 
   deploy-prod:
     if: github.ref == 'refs/heads/main'
@@ -98,7 +119,6 @@ jobs:
         run: npm run build
         env:
           NEXT_PUBLIC_ENV: production
-          PORT: "3000"
       - name: 🚀 Deploy to Prod Folder
         shell: powershell
         run: |
@@ -109,10 +129,20 @@ jobs:
           Copy-Item -Path "$source\*" -Destination $dest -Recurse -Force
           New-Item -ItemType Directory -Force -Path "$dest\.next\static" | Out-Null
           Copy-Item -Path ".next\static\*" -Destination "$dest\.next\static" -Recurse -Force
-      - name: 🔄 Restart PM2 (Prod)
+      - name: 🔄 Start/Restart PM2 (Prod)
         shell: powershell
         run: |
           Set-Location "D:\\Gema\\remake-mms\\prod"
           pm2 delete mms1-prod --silent 2>$null
           pm2 start server.js --name mms1-prod -- -p 3000
-          pm2 save
+          Start-Sleep -Seconds 2
+          
+          # Health Check
+          $listening = Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue
+          if ($listening) {
+            Write-Host "✅ SUCCESS: mms1-prod is listening on port 3000"
+          } else {
+            Write-Host "❌ FAILED: Port 3000 is not listening."
+            pm2 logs mms1-prod --lines 10
+            exit 1
+          }
