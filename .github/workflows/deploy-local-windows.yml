@@ -5,114 +5,107 @@ on:
     branches: [dev, test, main]
 
 jobs:
-  deploy:
+  deploy-dev:
+    if: github.ref == 'refs/heads/dev'
     runs-on: self-hosted
-    
-    strategy:
-      matrix:
-        include:
-          - branch: dev
-            env_name: development
-            deploy_path: "D:\\Gema\\remake-mms\\dev"
-            port: 3001
-            pm2_name: "mms1-dev"
-          - branch: test
-            env_name: testing
-            deploy_path: "D:\\Gema\\remake-mms\\test"
-            port: 3002
-            pm2_name: "mms1-test"
-          - branch: main
-            env_name: production
-            deploy_path: "D:\\Gema\\remake-mms\\prod"
-            port: 3000
-            pm2_name: "mms1-prod"
-
-    if: github.ref == format('refs/heads/{0}', matrix.branch)
-
     steps:
       - name: 🛒 Checkout Code
         uses: actions/checkout@v4
-
       - name: 🟢 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-
       - name: 📦 Install Dependencies
         run: npm ci
-
       - name: 🔨 Build Application
         run: npm run build
         env:
-          NEXT_PUBLIC_ENV: ${{ matrix.env_name }}
-
-      - name: 🕵️ Check Build Output
-        shell: pwsh
-        run: |
-          Write-Host "Checking .next/standalone directory..."
-          Get-ChildItem -Path ".next\standalone" -Recurse | Select-Object FullName
-          
-          # Verify server.js exists
-          if (Test-Path ".next\standalone\server.js") {
-            Write-Host "✅ server.js found!"
-          } else {
-            Write-Host "❌ ERROR: server.js NOT found! Build might have failed."
-            exit 1
-          }
-
-      - name: 🚀 Deploy to Local Folder
+          NEXT_PUBLIC_ENV: development
+      - name: 🚀 Deploy to Dev Folder
         shell: pwsh
         run: |
           $source = ".next\standalone"
-          $dest = "${{ matrix.deploy_path }}"
-          
-          Write-Host "Copying from $source to $dest"
-          
-          # Clean destination
-          if (Test-Path $dest) {
-            Remove-Item -Path "$dest\*" -Recurse -Force -ErrorAction SilentlyContinue
-          }
+          $dest = "D:\\Gema\\remake-mms\\dev"
+          if (Test-Path $dest) { Remove-Item -Path "$dest\*" -Recurse -Force -ErrorAction SilentlyContinue }
           New-Item -ItemType Directory -Force -Path $dest | Out-Null
-          
-          # Copy standalone files
           Copy-Item -Path "$source\*" -Destination $dest -Recurse -Force
-          
-          # CRITICAL: Copy .next/static folder explicitly into the destination
-          # The standalone folder expects .next/static to exist relative to it
-          $staticDest = "$dest\.next\static"
-          New-Item -ItemType Directory -Force -Path $staticDest | Out-Null
-          Copy-Item -Path ".next\static\*" -Destination $staticDest -Recurse -Force
-          
-          Write-Host "✅ Files copied. Listing destination:"
-          Get-ChildItem -Path $dest
-
-      - name: 🔄 Restart PM2 Service
+          New-Item -ItemType Directory -Force -Path "$dest\.next\static" | Out-Null
+          Copy-Item -Path ".next\static\*" -Destination "$dest\.next\static" -Recurse -Force
+      - name: 🔄 Restart PM2 (Dev)
         shell: pwsh
         run: |
-          $pm2Name = "${{ matrix.pm2_name }}"
-          $port = "${{ matrix.port }}"
-          $deployPath = "${{ matrix.deploy_path }}"
-          
-          Write-Host "Changing directory to: $deployPath"
-          Set-Location $deployPath
-          
-          # Verify server.js exists in the NEW location
-          if (!(Test-Path "server.js")) {
-            Write-Host "❌ CRITICAL ERROR: server.js not found in $deployPath"
-            Get-ChildItem
-            exit 1
-          }
-          
-          Write-Host "Stopping old process (if any)..."
-          pm2 delete $pm2Name --silent 2>$null
-          
-          Write-Host "Starting $pm2Name on port $port..."
-          # Explicitly call node server.js
-          pm2 start server.js --name $pm2Name --port $port
-          
-          Write-Host "Saving PM2 list..."
+          Set-Location "D:\\Gema\\remake-mms\\dev"
+          pm2 delete mms1-dev --silent 2>$null
+          pm2 start server.js --name mms1-dev --port 3001
           pm2 save
-          
-          Write-Host "✅ PM2 Status:"
-          pm2 list
+
+  deploy-test:
+    if: github.ref == 'refs/heads/test'
+    runs-on: self-hosted
+    steps:
+      - name: 🛒 Checkout Code
+        uses: actions/checkout@v4
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: 📦 Install Dependencies
+        run: npm ci
+      - name: 🔨 Build Application
+        run: npm run build
+        env:
+          NEXT_PUBLIC_ENV: testing
+      - name: 🚀 Deploy to Test Folder
+        shell: pwsh
+        run: |
+          $source = ".next\standalone"
+          $dest = "D:\\Gema\\remake-mms\\test"
+          if (Test-Path $dest) { Remove-Item -Path "$dest\*" -Recurse -Force -ErrorAction SilentlyContinue }
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          Copy-Item -Path "$source\*" -Destination $dest -Recurse -Force
+          New-Item -ItemType Directory -Force -Path "$dest\.next\static" | Out-Null
+          Copy-Item -Path ".next\static\*" -Destination "$dest\.next\static" -Recurse -Force
+      - name: 🔄 Restart PM2 (Test)
+        shell: pwsh
+        run: |
+          Set-Location "D:\\Gema\\remake-mms\\test"
+          pm2 delete mms1-test --silent 2>$null
+          pm2 start server.js --name mms1-test --port 3002
+          pm2 save
+
+  deploy-prod:
+    if: github.ref == 'refs/heads/main'
+    runs-on: self-hosted
+    steps:
+      - name: 🛒 Checkout Code
+        uses: actions/checkout@v4
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: 📦 Install Dependencies
+        run: npm ci
+      - name: 🔨 Build Application
+        run: npm run build
+        env:
+          NEXT_PUBLIC_ENV: production
+      - name: 🚀 Deploy to Prod Folder
+        shell: pwsh
+        run: |
+          $source = ".next\standalone"
+          $dest = "D:\\Gema\\remake-mms\\prod"
+          if (Test-Path $dest) { Remove-Item -Path "$dest\*" -Recurse -Force -ErrorAction SilentlyContinue }
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          Copy-Item -Path "$source\*" -Destination $dest -Recurse -Force
+          New-Item -ItemType Directory -Force -Path "$dest\.next\static" | Out-Null
+          Copy-Item -Path ".next\static\*" -Destination "$dest\.next\static" -Recurse -Force
+      - name: 🔄 Restart PM2 (Prod)
+        shell: pwsh
+        run: |
+          Set-Location "D:\\Gema\\remake-mms\\prod"
+          pm2 delete mms1-prod --silent 2>$null
+          pm2 start server.js --name mms1-prod --port 3000
+          pm2 save
