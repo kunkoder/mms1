@@ -26,7 +26,6 @@ jobs:
         shell: powershell
         run: |
           $source = ".next\standalone"
-          $publicSource = "public" # The folder containing your SVGs
           $dest = "D:\\Gema\\remake-mms\\dev"
           
           # 1. Clean Destination
@@ -40,16 +39,16 @@ jobs:
           New-Item -ItemType Directory -Force -Path "$dest\.next\static" | Out-Null
           Copy-Item -Path ".next\static\*" -Destination "$dest\.next\static" -Recurse -Force
           
-          # 4. CRITICAL: Copy Public Folder (Images, SVGs, Fonts)
-          # This merges the public folder into the root of the deployment
-          if (Test-Path $publicSource) {
-            Copy-Item -Path "$publicSource\*" -Destination $dest -Recurse -Force
-            Write-Host "✅ Public assets copied to $dest"
+          # 4. CRITICAL: Copy Public Folder (SVGs, Images, Fonts)
+          # This merges your root 'public' folder into the deployment root
+          if (Test-Path "public") {
+            Copy-Item -Path "public\*" -Destination $dest -Recurse -Force
+            Write-Host "✅ Public assets (SVGs, images) copied to $dest"
           } else {
-            Write-Host "⚠️ No public folder found, skipping."
+            Write-Host "⚠️ Warning: 'public' folder not found!"
           }
 
-          # 5. Create Ecosystem Config for Port
+          # 5. Create Ecosystem Config for Port 3001
           $config = @"
           module.exports = {
             apps: [{
@@ -103,7 +102,6 @@ jobs:
         shell: powershell
         run: |
           $source = ".next\standalone"
-          $publicSource = "public"
           $dest = "D:\\Gema\\remake-mms\\test"
           
           if (Test-Path $dest) { Remove-Item -Path "$dest\*" -Recurse -Force -ErrorAction SilentlyContinue }
@@ -115,8 +113,8 @@ jobs:
           Copy-Item -Path ".next\static\*" -Destination "$dest\.next\static" -Recurse -Force
           
           # Copy Public Assets
-          if (Test-Path $publicSource) {
-            Copy-Item -Path "$publicSource\*" -Destination $dest -Recurse -Force
+          if (Test-Path "public") {
+            Copy-Item -Path "public\*" -Destination $dest -Recurse -Force
           }
 
           $config = @"
@@ -161,7 +159,6 @@ jobs:
         shell: powershell
         run: |
           $source = ".next\standalone"
-          $publicSource = "public"
           $dest = "D:\\Gema\\remake-mms\\prod"
           
           if (Test-Path $dest) { Remove-Item -Path "$dest\*" -Recurse -Force -ErrorAction SilentlyContinue }
@@ -173,8 +170,8 @@ jobs:
           Copy-Item -Path ".next\static\*" -Destination "$dest\.next\static" -Recurse -Force
           
           # Copy Public Assets
-          if (Test-Path $publicSource) {
-            Copy-Item -Path "$publicSource\*" -Destination $dest -Recurse -Force
+          if (Test-Path "public") {
+            Copy-Item -Path "public\*" -Destination $dest -Recurse -Force
           }
 
           $config = @"
