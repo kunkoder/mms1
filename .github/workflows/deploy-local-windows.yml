@@ -37,7 +37,7 @@ jobs:
         run: |
           Set-Location "D:\\Gema\\remake-mms\\dev"
           pm2 delete mms1-dev --silent 2>$null
-          pm2 start server.js --name mms1-dev --port 3001
+          pm2 start server.js --name mms1-dev -e port 3001
           pm2 save
 
   deploy-test:
@@ -72,7 +72,7 @@ jobs:
         run: |
           Set-Location "D:\\Gema\\remake-mms\\test"
           pm2 delete mms1-test --silent 2>$null
-          pm2 start server.js --name mms1-test --port 3002
+          pm2 start server.js --name mms1-test -e port 3002
           pm2 save
 
   deploy-prod:
@@ -107,5 +107,5 @@ jobs:
         run: |
           Set-Location "D:\\Gema\\remake-mms\\prod"
           pm2 delete mms1-prod --silent 2>$null
-          pm2 start server.js --name mms1-prod --port 3000
+          pm2 start server.js --name mms1-prod -e port 3000
           pm2 save
