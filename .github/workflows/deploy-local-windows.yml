@@ -22,6 +22,9 @@ jobs:
         run: npm run build
         env:
           NEXT_PUBLIC_ENV: development
+          # Setting PORT here ensures the build knows about it, 
+          # though standalone mainly cares about runtime.
+          PORT: "3001" 
       - name: 🚀 Deploy to Dev Folder
         shell: powershell
         run: |
@@ -37,8 +40,8 @@ jobs:
         run: |
           Set-Location "D:\\Gema\\remake-mms\\dev"
           pm2 delete mms1-dev --silent 2>$null
-          # Use -e to set the PORT environment variable for the process
-          pm2 start server.js --name mms1-dev -e PORT=3001
+          # Explicitly pass the environment variable to the node process
+          pm2 start server.js --name mms1-dev -- -p 3001
           pm2 save
 
   deploy-test:
@@ -58,6 +61,7 @@ jobs:
         run: npm run build
         env:
           NEXT_PUBLIC_ENV: testing
+          PORT: "3002"
       - name: 🚀 Deploy to Test Folder
         shell: powershell
         run: |
@@ -73,8 +77,8 @@ jobs:
         run: |
           Set-Location "D:\\Gema\\remake-mms\\test"
           pm2 delete mms1-test --silent 2>$null
-          # Use -e to set the PORT environment variable for the process
-          pm2 start server.js --name mms1-test -e PORT=3002
+          # Use '-- -p 3002' to pass arguments directly to node/server.js
+          pm2 start server.js --name mms1-test -- -p 3002
           pm2 save
 
   deploy-prod:
@@ -94,6 +98,7 @@ jobs:
         run: npm run build
         env:
           NEXT_PUBLIC_ENV: production
+          PORT: "3000"
       - name: 🚀 Deploy to Prod Folder
         shell: powershell
         run: |
@@ -109,6 +114,5 @@ jobs:
         run: |
           Set-Location "D:\\Gema\\remake-mms\\prod"
           pm2 delete mms1-prod --silent 2>$null
-          # Prod usually stays on default 3000, but let's be explicit
-          pm2 start server.js --name mms1-prod -e PORT=3000
+          pm2 start server.js --name mms1-prod -- -p 3000
           pm2 save
