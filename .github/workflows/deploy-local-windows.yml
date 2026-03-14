@@ -23,7 +23,7 @@ jobs:
         env:
           NEXT_PUBLIC_ENV: development
       - name: 🚀 Deploy to Dev Folder
-        shell: pwsh
+        shell: powershell # Changed from pwsh to powershell
         run: |
           $source = ".next\standalone"
           $dest = "D:\\Gema\\remake-mms\\dev"
@@ -33,7 +33,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path "$dest\.next\static" | Out-Null
           Copy-Item -Path ".next\static\*" -Destination "$dest\.next\static" -Recurse -Force
       - name: 🔄 Restart PM2 (Dev)
-        shell: pwsh
+        shell: powershell # Changed from pwsh to powershell
         run: |
           Set-Location "D:\\Gema\\remake-mms\\dev"
           pm2 delete mms1-dev --silent 2>$null
@@ -58,7 +58,7 @@ jobs:
         env:
           NEXT_PUBLIC_ENV: testing
       - name: 🚀 Deploy to Test Folder
-        shell: pwsh
+        shell: powershell # Changed from pwsh to powershell
         run: |
           $source = ".next\standalone"
           $dest = "D:\\Gema\\remake-mms\\test"
@@ -68,7 +68,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path "$dest\.next\static" | Out-Null
           Copy-Item -Path ".next\static\*" -Destination "$dest\.next\static" -Recurse -Force
       - name: 🔄 Restart PM2 (Test)
-        shell: pwsh
+        shell: powershell # Changed from pwsh to powershell
         run: |
           Set-Location "D:\\Gema\\remake-mms\\test"
           pm2 delete mms1-test --silent 2>$null
@@ -93,7 +93,7 @@ jobs:
         env:
           NEXT_PUBLIC_ENV: production
       - name: 🚀 Deploy to Prod Folder
-        shell: pwsh
+        shell: powershell # Changed from pwsh to powershell
         run: |
           $source = ".next\standalone"
           $dest = "D:\\Gema\\remake-mms\\prod"
@@ -103,7 +103,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path "$dest\.next\static" | Out-Null
           Copy-Item -Path ".next\static\*" -Destination "$dest\.next\static" -Recurse -Force
       - name: 🔄 Restart PM2 (Prod)
-        shell: pwsh
+        shell: powershell # Changed from pwsh to powershell
         run: |
           Set-Location "D:\\Gema\\remake-mms\\prod"
           pm2 delete mms1-prod --silent 2>$null
