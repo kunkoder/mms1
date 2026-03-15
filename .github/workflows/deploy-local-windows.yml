@@ -5,114 +5,108 @@ on:
     branches: [dev, test, main]
 
 jobs:
-  deploy-dev:
-    if: github.ref == 'refs/heads/dev'
+  deploy:
     runs-on: self-hosted
-    steps:
-      - name: 🛒 Checkout Code
-        uses: actions/checkout@v4
-      - name: 🟢 Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-      - name: 📦 Install Dependencies
-        run: npm ci
-      - name: 🔨 Build Application
-        run: npm run build
-        env:
-          NEXT_PUBLIC_ENV: development
-          # Setting PORT here ensures the build knows about it, 
-          # though standalone mainly cares about runtime.
-          PORT: "3001" 
-      - name: 🚀 Deploy to Dev Folder
-        shell: powershell
-        run: |
-          $source = ".next\standalone"
-          $dest = "D:\\Gema\\remake-mms\\dev"
-          if (Test-Path $dest) { Remove-Item -Path "$dest\*" -Recurse -Force -ErrorAction SilentlyContinue }
-          New-Item -ItemType Directory -Force -Path $dest | Out-Null
-          Copy-Item -Path "$source\*" -Destination $dest -Recurse -Force
-          New-Item -ItemType Directory -Force -Path "$dest\.next\static" | Out-Null
-          Copy-Item -Path ".next\static\*" -Destination "$dest\.next\static" -Recurse -Force
-      - name: 🔄 Restart PM2 (Dev)
-        shell: powershell
-        run: |
-          Set-Location "D:\\Gema\\remake-mms\\dev"
-          pm2 delete mms1-dev --silent 2>$null
-          # Explicitly pass the environment variable to the node process
-          pm2 start server.js --name mms1-dev -- -p 3001
-          pm2 save
 
-  deploy-test:
-    if: github.ref == 'refs/heads/test'
-    runs-on: self-hosted
     steps:
       - name: 🛒 Checkout Code
         uses: actions/checkout@v4
-      - name: 🟢 Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-      - name: 📦 Install Dependencies
-        run: npm ci
-      - name: 🔨 Build Application
-        run: npm run build
-        env:
-          NEXT_PUBLIC_ENV: testing
-          PORT: "3002"
-      - name: 🚀 Deploy to Test Folder
-        shell: powershell
-        run: |
-          $source = ".next\standalone"
-          $dest = "D:\\Gema\\remake-mms\\test"
-          if (Test-Path $dest) { Remove-Item -Path "$dest\*" -Recurse -Force -ErrorAction SilentlyContinue }
-          New-Item -ItemType Directory -Force -Path $dest | Out-Null
-          Copy-Item -Path "$source\*" -Destination $dest -Recurse -Force
-          New-Item -ItemType Directory -Force -Path "$dest\.next\static" | Out-Null
-          Copy-Item -Path ".next\static\*" -Destination "$dest\.next\static" -Recurse -Force
-      - name: 🔄 Restart PM2 (Test)
-        shell: powershell
-        run: |
-          Set-Location "D:\\Gema\\remake-mms\\test"
-          pm2 delete mms1-test --silent 2>$null
-          # Use '-- -p 3002' to pass arguments directly to node/server.js
-          pm2 start server.js --name mms1-test -- -p 3002
-          pm2 save
 
-  deploy-prod:
-    if: github.ref == 'refs/heads/main'
-    runs-on: self-hosted
-    steps:
-      - name: 🛒 Checkout Code
-        uses: actions/checkout@v4
       - name: 🟢 Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
+
       - name: 📦 Install Dependencies
         run: npm ci
+
       - name: 🔨 Build Application
         run: npm run build
-        env:
-          NEXT_PUBLIC_ENV: production
-          PORT: "3000"
-      - name: 🚀 Deploy to Prod Folder
+
+      - name: ⚙️ Determine Environment
         shell: powershell
         run: |
-          $source = ".next\standalone"
-          $dest = "D:\\Gema\\remake-mms\\prod"
-          if (Test-Path $dest) { Remove-Item -Path "$dest\*" -Recurse -Force -ErrorAction SilentlyContinue }
+          if ("${{ github.ref }}" -eq "refs/heads/dev") {
+            echo "ENV_NAME=dev" >> $env:GITHUB_ENV
+            echo "PORT=3001" >> $env:GITHUB_ENV
+            echo "PM2_NAME=mms1-dev" >> $env:GITHUB_ENV
+            echo "NEXT_PUBLIC_ENV=development" >> $env:GITHUB_ENV
+          }
+          elseif ("${{ github.ref }}" -eq "refs/heads/test") {
+            echo "ENV_NAME=test" >> $env:GITHUB_ENV
+            echo "PORT=3002" >> $env:GITHUB_ENV
+            echo "PM2_NAME=mms1-test" >> $env:GITHUB_ENV
+            echo "NEXT_PUBLIC_ENV=testing" >> $env:GITHUB_ENV
+          }
+          elseif ("${{ github.ref }}" -eq "refs/heads/main") {
+            echo "ENV_NAME=prod" >> $env:GITHUB_ENV
+            echo "PORT=3000" >> $env:GITHUB_ENV
+            echo "PM2_NAME=mms1-prod" >> $env:GITHUB_ENV
+            echo "NEXT_PUBLIC_ENV=production" >> $env:GITHUB_ENV
+          }
+
+      - name: 🚀 Deploy Build
+        shell: powershell
+        run: |
+          $dest = "D:\Gema\remake-mms\${{ env.ENV_NAME }}"
+
+          Write-Host "Deploying to $dest"
+
+          # Clean destination
+          if (Test-Path $dest) {
+            Remove-Item "$dest\*" -Recurse -Force -ErrorAction SilentlyContinue
+          }
+
           New-Item -ItemType Directory -Force -Path $dest | Out-Null
-          Copy-Item -Path "$source\*" -Destination $dest -Recurse -Force
+
+          # Copy standalone server
+          Copy-Item ".next\standalone\*" $dest -Recurse -Force
+
+          # Copy Next static assets
           New-Item -ItemType Directory -Force -Path "$dest\.next\static" | Out-Null
-          Copy-Item -Path ".next\static\*" -Destination "$dest\.next\static" -Recurse -Force
-      - name: 🔄 Restart PM2 (Prod)
+          Copy-Item ".next\static\*" "$dest\.next\static" -Recurse -Force
+
+          # Copy public folder correctly
+          if (Test-Path "public") {
+            Copy-Item "public" "$dest\public" -Recurse -Force
+            Write-Host "✅ Public assets copied"
+          }
+
+          # Create PM2 config
+          $config = @"
+          module.exports = {
+            apps: [{
+              name: '${{ env.PM2_NAME }}',
+              script: 'server.js',
+              env: {
+                PORT: ${{ env.PORT }},
+                NODE_ENV: '${{ env.NEXT_PUBLIC_ENV }}'
+              }
+            }]
+          }
+          "@
+
+          Set-Content -Path "$dest\ecosystem.config.js" -Value $config
+
+      - name: 🔄 Restart PM2
         shell: powershell
         run: |
-          Set-Location "D:\\Gema\\remake-mms\\prod"
-          pm2 delete mms1-prod --silent 2>$null
-          pm2 start server.js --name mms1-prod -- -p 3000
-          pm2 save
+          $dest = "D:\Gema\remake-mms\${{ env.ENV_NAME }}"
+
+          Set-Location $dest
+
+          pm2 delete ${{ env.PM2_NAME }} --silent 2>$null
+          pm2 start ecosystem.config.js
+
+          Start-Sleep -Seconds 3
+
+          $listening = Get-NetTCPConnection -LocalPort ${{ env.PORT }} -ErrorAction SilentlyContinue
+
+          if ($listening) {
+            Write-Host "✅ SUCCESS: ${{ env.PM2_NAME }} running on port ${{ env.PORT }}"
+          } else {
+            Write-Host "❌ FAILED: Port ${{ env.PORT }} not listening"
+            pm2 logs ${{ env.PM2_NAME }} --lines 20
+            exit 1
+          }
